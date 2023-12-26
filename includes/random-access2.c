@@ -5,7 +5,7 @@
 struct record {
     int id;
     char name[80];
-}
+};
 
 int main() 
 {

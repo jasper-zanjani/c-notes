@@ -1,318 +1,130 @@
-# C
+*[TLPI]: The Linux Programming Interface
+*[APUE]: Advanced Programming in the Unix Environment, 3rd ed.
 
-## Tasks
+# Overview
 
-??? info "Hello, World!"
+C is a programming language closely associated with UNIX and Linux.
+C was inspired by the B language, which was written by Ken Thompson in 1970 for the first UNIX system on the PDP-7.
 
-    === "Naive"
 
-        ```c
-        --8<-- "includes/hw0.c"
-        ```
+??? info "C standards"
 
-    === "Interactive"
-    
-        ```c
-        --8<-- "includes/hw1.c"
-        ```
+    For many years, the definition of C was the reference manual in the first edition of *The C Programming Language* by Brian Kernighan and Dennis Ritchie (Kernighan).
 
-#### Header files
+    In 1983, ANSI established a committee to provide a modern, comprehensive definition of C which was completed late in 1988, referred to as ANSI C or standard C.
+    ANSI C incorporates small changes to the language, incorporating enumerations, single-precision floating-point computations, and elaborating the preprocessor.
+    Additionally, a library was defined to accompany C ("the standard library") to incorporate higher-level functions to facilitate file access, etc.
 
-Compiling even simple programs will fail if they include dependencies on header files that are not present.
-Header files can usually be found at **/usr/include**.
+    The C standard is now maintained and developed by the ISO/IEC international standardization working group for the C programming language, known as WG14 (short for ISO/IEC JTC1/SC22/WG14).
+    In 1999 the ISO C standard was updated and approved (ISO/IEC 9899:1999, referred as **C99**) to improve support for applications that perform numerical processing.
+    The changes don't affect POSIX interfaces relevant to system programming, except for the addition of the **restrict** keyword which tells the compiler which pointer references can be optimized by indicating that the object to which the pointer refers is accessed in the functino only via that pointer.
+    Technical corrigenda have been published in 2001, 2004, and 2007.
+    Successively newer versions of C have been referred to as C11, C18, and C22.
 
-```sh
-apt install -y build-essential
+    ```c title="Inspect compiler's version of C"
+    --8<-- "includes/cstd.c"
+    ```
 
-# Note that this not yet possible on WSL2 without using a custom compiled kernel.
-apt install -y linux-header-$(uname -r)
+    A specific C version can be specified to the compiler with **-std**
+
+    ```sh
+    --8<-- "includes/gcc/gcc-cstd.sh"
+    ```
+
+??? info "POSIX.1"
+
+    *[IEEE]: Institute of Electrical and electronics engineers
+
+    **POSIX** (Portable Operating system Interface) is a family of standards initially developed by the IEEE.
+    The 1988 version of POSIX, IEEE Standard 1003.1-1988, saw minor revisions and was submitted to ISO as ISO/IEC 9945-1:1990 (also IEEE 1003.1-1990), commonly referred to as **POSIX.1**.
+
+    In 1996 the [**pthreads**](Libraries/pthreads) interfaces for multithreaded programming were added to the standard, which was published as ISO/IEC 9945-1:1996.
+    Additional interfaces were added in 1999, 2000, 2001, 2004, and 2008 which was approved by ISO as ISO/IEC 9945:2009. 
+
+    The POSIX.1 standard includes the 24 ISO C headers as well as others.
+
+```c title="main() signature"
+int main(int argc, char** argv);
 ```
 
-#### Compiling
+**main()** is the canonical [entrypoint](https://opensource.com/article/19/5/how-write-good-c-main-function) for C and C++ programs.
+It returns a signed integer and takes two arguments.
 
---8<-- "includes/gcc.md"
+- **argc** argument count
+- **argv** argument vector
 
-### Syscalls
+**Header files** are included by using the **#include** C preprocessor directive.
+Headers provided in angle brackets are to be found in the system-defined header path (**/usr/include**).
 
-The [**open()**](#open), [**close()**](#close), [**read()**](#read), and [**write()**](#write) syscalls form the heart of low-level file I/O in Linux.
-
-Some system calls accept **flag arguments**, specified using symbolic constants.
-Some of these are single-bit values which are combined into a single value using the bitwise OR operator **|**.
-
-
-#### close
-:   
-    ```c
-    close(fd);
-    ```
-
-    ```c hl_lines="22-23"
-    --8<-- "includes/copy1.c"
-    ```
-
-#### exec
-:   
-    There are seven variations of **exec()**, all of which are used to replace the current process with the contents of another thread.
-    
-    These variations are distinguished by how they pass arguments (**l**ist or **v**ector), whether or not they create a new environment (**e**), and whether they require a full pathname or must search on the path environment variable (**p**).
-    For example, **execvpe** specifies an executable on the path, creates a new environment, and passes arguments in a vector.
-
-    ```c hl_lines="11"
-    --8<-- "includes/tinyshell.c"
-    ```
-
-#### exit
-:   
-    **exit()** ends the program, returning the integer provided in parentheses as the exit status of the process.
-
-#### fork
-:   
-    **fork()** is used to create a new process and is typically associated with [**exec()**](#exec) and [**wait()**](#wait).
-
-    This simple example shows how the value returned by the fork() call differs between the parent and child processes.
-    ```c
-    --8<-- "includes/fork.c"
-    ```
-
-    ```c hl_lines="2 8"
-    --8<-- "includes/learning-fork.c"
-    ```
-
-#### ftruncate
-:   
-    ```c hl_lines="23"
-    --8<-- "includes/ipc-producer.c"
-    ```
-
-#### getpid
-:   
-    ```c
-    #include <unistd.h>
-
-    getpid();
-    ```
-
-    ```c hl_lines="15"
-    --8<-- "includes/exit-status.c"
-    ```
-
-#### getrandom
-:   
-    [Introduced](https://lwn.net/SubscriberLink/884875/58f88e6eb7913686/) in Linux 3.17 to allow userspace applications to request random numbers in the case of no access to random devices (i.e. containers).
-    By default it will use the [/dev/urandom]() pool, which normally does not block. 
-    A flag can be provided to use the /dev/random pool instead.
-
-#### lseek
-:   
-    Repositions the file read/write offset, allowing random access to an open file descriptor.
-    ```c
-    #include <unistd.h>
-
-    lseek(
-        fd, 
-        offset, // (1)
-        whence  // (2)
-    );
-    ```
-
-    1. Byte offset, positive or negative (usually negative when with respect to end-of file using **SEEK\_END** flag).
-    2. Accepts one of several flags that determine where the offset is relative to: **SEEK\_SET** (beginning of file), **SEEK\_CUR** (current position), or **SEEK\_END** (end of file).
-
-    ```c
-    --8<-- 
-    ```
-
-#### malloc
-:   
-
-
-#### memcpy
-:   
-    Used for copying stack-allocated data.
-
-    ```c
-    memcpy(
-        dst,  //
-        size, //
-        flags //
-    );
-    ```
-
-#### mmap
-:   
-    Maps a file into memory, allowing it to be accessed as if were an array.
-    ```c
-    mmap(
-        addr,   // (1)
-        length, // (2)
-        prot,   // (3)
-        flags,  // (4)
-        fd,     // (5)
-        offset  // (6)
-    );  // (7)
-    ```
-
-    1. Commonly set to **NULL**, allowing the kernel to choose the address.
-    2. Length of the mapping
-    3. Typically a combination of **PROT\_READ** and/or **PROT\_WRITE**
-    4. Determines whether the mapped region is shared with other processes: **MAP\_SHARED** or **MAP\_PRIVATE**
-    5. File descriptor from [**open()**](#open)
-    6. Multiple of page size, and often set to 0 to map the entire file
-    7. Return value is the address to which the file has been mapped (similar to [**malloc()**](#malloc))
-
-    === "IPC producer"
-
-        ```c hl_lines="26"
-        --8<-- "includes/ipc-producer.c"
-        ```
-
-    === "IPC consumer"
-
-        ```c hl_lines="16"
-        --8<-- "includes/ipc-consumer.c"
-        ```
-
-#### msync
-:   
-
-
-#### open
-:   
-    A call to **open()** creates a new open file descriptor
-
-    ```c
-    fd = open("foo", O_RDWR   | // (1) 
-                    O_TRUNC  | // (2) 
-                    O_APPEND   // (3)
-    );
-    ```
-
-    1. **Access mode** flag specifying reading and writing: **O\_RDWR**, **O\_RDONLY**, or **O\_WRONLY**.
-    2. **Open-time** flag required for writing. However, calling [**ftruncate()**](#ftruncate) is recommended over use of this flag in [**open()**](#open), which is retained for backwards compatibility.
-    3. **Operating mode** flag that makes all write operations write data at the end of the file, extending it, regardless of the current file position.
-
-    ```c
-    --8<-- "includes/copy1.c"
-    ```
-
-#### read
-:   
-    Like [**write()**](#write), calls to read() require require a pointer to the buffer as well as the count of bytes which must not exceed the buffer's actual size.
-    read() will return the number of bytes actually read and 0 on end-of-file.
-    ```c
-    read(fd, buffer, count);
-    ```
-
-    ```c hl_lines="19"
-    --8<-- "includes/copy1.c"
-    ```
-
-#### shm_open
-:   
-    ```c hl_lines="20"
-    --8<-- "includes/ipc-producer.c"
-    ```
-
-#### shm_unlink
-:   
-    Removes the shared-memory segment after the consumer has accessed it.
-    ```c hl_lines="20"
-    --8<-- "includes/ipc-consumer.c"
-    ```
-
-#### wait
-:   
-    wait() blocks until one of the process's children terminates and returns an integer.
-
-    ```c
-    int status;
-    wait(&status); // (1)
-    ```
-
-    1. Passing 0 or NULL will discard the child's exit status.
-
-    The exit status is separted into upper and lower bytes.
-    If the process was killed by a signal the top bit of the lower byte is called the "Core Dumped" flag.
-    There are several macros used to analyze the exit status.
-
-    - **WIFEXITED** true if child exited normally
-    - **WEXITSTATUS**
-    - **WIFSIGNALED** true if child terminated by signal
-    - **WTERMSIG** signal number
-
-    ```c
-    --8<-- "includes/exit-status.c"
-    ```
-
-    ```c hl_lines="16"
-    --8<-- "includes/learning-fork.c"
-    ```
-
-#### write
-:   
-    Like [**read()**](#read), write() takes an integer file descriptor, a pointer to the buffer, as well as a count of bytes which must not exceed the buffer's size.
-
-    ```c hl_lines="20"
-    write(fd, buffer, count);
-    ```
-
-    ```c
-    --8<-- "includes/copy1.c"
-    ```
-
-### Pthreads
-
-Pthreads provides an API for multithreaded programming in C.
-In Pthreads, new threads are spawned explicitly using [**pthread\_create**](#pthread_create) passing the name of a function which the thread will run.
-
-Notably, this function must have precisely the following signature:
 ```c
-void *func(void *arg)
+#include <stdio.h>
 ```
 
-Also, when compiling a program using Pthreads with gcc the **-lpthread** option must be set.
+??? info "Installing header files"
 
-#### pthread\_attr\_init
-:   
-    ```c hl_lines="13"
-    ---8<-- "includes/pthreads.c"
+    Compiling even simple programs will fail if they include dependencies on header files that are not present.
+
+    ```sh
+    # Ubuntu
+    apt install -y build-essential
+
+    # Note that this not yet possible on WSL2 without using a custom compiled kernel.
+    apt install -y linux-header-$(uname -r)
     ```
 
-#### pthread\_create
-:   
-    ```c hl_lines="14"
-    --8<-- "includes/pthreads.c"
-    ```
+#### Text input
 
-#### pthread\_exit
-:   
-    ```c hl_lines="28"
-    --8<-- "includes/pthreads.c"
-    ```
+A trivial example showing how a character stream can be accepted and immediately echoed.
 
+```c
+--8<-- "includes/Kernighan/05.c"
+```
 
-#### pthread\_join
-:   
-    ```c hl_lines="15"
-    --8<-- "includes/pthreads.c"
-    ```
+A similarly trivial example shows how a stream of characters can be counted.
+Note that the enter press is part of the character stream and cannot be omitted, even if you hit ++Ctrl+D++ to insert EOF.
 
-### Structs
+```c
+--8<-- "includes/Kernighan/06.c"
+```
 
-#### task\_struct
-:   
-    Represents the [**process control block**](/Coding/CS/#pcb)
+A stranger-looking but more interesting implementation is possible by declaring the index variable of the for loop outside of the loop and using it to keep track of the character stream.
 
-## Tasks
+```c
+--8<-- "includes/Kernighan/07.c"
+```
 
-### GTK
+Here, lines of input are counted instead of characters.
 
-#### Hello, World!
-:   
-    <figure markdown> ![](/img/GTK/Hello-World/label.png) </figure>
+```c
+--8<-- "includes/Kernighan/08.c"
+```
 
-    ```c
-    --8<-- "includes/GTK/hw.c"
-    ```
+Here, a more elaborate example stores the longest line of all the lines typed in.
+Note the example includes a **symbolic constant** and multiple function definitions, including function declarations at the top.
 
-    1. Without connecting the signals, the process will not terminate after clicking the close button, although the window will close.
+```c
+--8<-- "includes/Kernighan/12.c"
+```
+
+#### Types
+
+--8<-- "includes/tasks/types.md"
+
+#### glibc
+
+--8<-- "includes/tasks/glibc.md"
+
+#### Error handling
+
+--8<-- "includes/tasks/error.md"
+
+#### Data organization
+
+Use structs to organize data.
+
+```c
+```
+
+#### Command-line parsing
+
+The functions **atoi()**, **atol()**, and **atoll()** (stdlib.h) allow conversion of strings passed in from the command-line to integers, longs, and long longs.
