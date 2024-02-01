@@ -1,6 +1,6 @@
 site_name: C
 site_url: https://jasper-zanjani.github.io/c
-site_dir: site
+site_dir: /home/jasper/Documents/mkdocs/c
 theme:
   name: material
   favicon: img/logo.png
